@@ -32,6 +32,7 @@ final class SessionController: ObservableObject {
     private var startDate: Date?
     private var timer: Timer?
     private var onComplete: (() -> Void)?
+    private let haptics = HapticPacer()
 
     /// How often we recompute phase/breath from the wall clock. Must be
     /// smaller than the shortest possible phase (a hold phase can be as
@@ -68,7 +69,7 @@ final class SessionController: ObservableObject {
             ?? BreathingEngine.phaseTimeline(for: BreathingConfig.startBreathDuration)
 
         startDate = Date()
-        HapticPacer.play(for: .inhale)
+        haptics.phaseChanged(to: .inhale, timeline: currentBreathTimeline)
 
         let newTimer = Timer(timeInterval: tickInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
@@ -81,6 +82,7 @@ final class SessionController: ObservableObject {
 
     /// Cancels the session without marking it complete.
     func stop() {
+        haptics.stop()
         timer?.invalidate()
         timer = nil
         startDate = nil
@@ -118,7 +120,7 @@ final class SessionController: ObservableObject {
 
         if phase != currentPhase {
             currentPhase = phase
-            HapticPacer.play(for: phase)
+            haptics.phaseChanged(to: phase, timeline: timeline)
         }
     }
 
@@ -139,7 +141,8 @@ final class SessionController: ObservableObject {
         remainingTime = 0
         progress = 1
         isComplete = true
-        HapticPacer.playSessionComplete()
+        haptics.stop()
+        haptics.playSessionComplete()
         onComplete?()
     }
 }
