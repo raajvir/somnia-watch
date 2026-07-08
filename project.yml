@@ -46,6 +46,11 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.projectsomnia.watch
+        # XcodeGen defaults watchOS apps to SKIP_INSTALL=YES (correct only for
+        # watch apps embedded in an iOS app). A standalone watch-only app must
+        # install into the archive, or the archive is "Generic" and Xcode
+        # offers zero distribution methods — no TestFlight upload.
+        SKIP_INSTALL: "NO"
         SWIFT_VERSION: "5.9"
         GENERATE_INFOPLIST_FILE: false
         CODE_SIGN_STYLE: Automatic
