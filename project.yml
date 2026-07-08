@@ -3,14 +3,51 @@ options:
   bundleIdPrefix: com.projectsomnia
   deploymentTarget:
     watchOS: "10.0"
+    iOS: "16.0"
 
 settings:
   base:
     SWIFT_VERSION: "5.9"
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: 924ZY5MDAT
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
 
 targets:
+  # Thin iOS host. Apple's CLI uploaders (altool/Transporter) cannot ingest
+  # watch-only IPAs at all — only Xcode's Organizer can, and that path is
+  # broken on this machine. Wrapping the watch app in a minimal iOS app makes
+  # the product a normal iOS IPA that uploads through altool with an API key.
+  # It is also the shell the future phone-companion features grow into.
+  SomniaPhone:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: SomniaPhone
+    dependencies:
+      - target: SomniaWatch
+    info:
+      path: SomniaPhone/Info.plist
+      properties:
+        CFBundleDisplayName: Somnia Watch
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen:
+          UIColorName: ""
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.projectsomnia.watch
+        GENERATE_INFOPLIST_FILE: false
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 924ZY5MDAT
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SKIP_INSTALL: "NO"
+
   SomniaWatch:
     type: application
     platform: watchOS
@@ -24,8 +61,10 @@ targets:
       path: SomniaWatch/Info.plist
       properties:
         CFBundleDisplayName: Somnia
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         WKApplication: true
-        WKWatchOnly: true
+        WKCompanionAppBundleIdentifier: com.projectsomnia.watch
         WKBackgroundModes:
           - workout-processing
         NSHealthShareUsageDescription: "Somnia reads your heart rate and heart rate variability during breathing sessions."
@@ -45,12 +84,11 @@ targets:
         com.apple.developer.healthkit.background-delivery: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.projectsomnia.watch
-        # XcodeGen defaults watchOS apps to SKIP_INSTALL=YES (correct only for
-        # watch apps embedded in an iOS app). A standalone watch-only app must
-        # install into the archive, or the archive is "Generic" and Xcode
-        # offers zero distribution methods — no TestFlight upload.
-        SKIP_INSTALL: "NO"
+        # Embedded in the iOS host now — the watch app rides inside the phone
+        # IPA (Watch/ folder), so it must NOT install itself into the archive
+        # top-level. (When this app was standalone, SKIP_INSTALL had to be NO;
+        # see git history.)
+        PRODUCT_BUNDLE_IDENTIFIER: com.projectsomnia.watch.watchkitapp
         SWIFT_VERSION: "5.9"
         GENERATE_INFOPLIST_FILE: false
         CODE_SIGN_STYLE: Automatic
