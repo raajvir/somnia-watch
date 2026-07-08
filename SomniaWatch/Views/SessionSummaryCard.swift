@@ -96,18 +96,26 @@ struct SessionSummaryCard: View {
         String(format: "%.0f", bpm.rounded())
     }
 
-    private func timeString(_ date: Date) -> String {
+    private static let timeStringFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
-        return formatter.string(from: date)
+        return formatter
+    }()
+
+    private func timeString(_ date: Date) -> String {
+        Self.timeStringFormatter.string(from: date)
     }
+
+    private static let noPeriodFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm"
+        return formatter
+    }()
 
     /// "4:42 → 4:50 PM" — only one AM/PM suffix when start and end share a
     /// period, so the row reliably fits on one line.
     private var startEndString: String {
-        let noPeriod = DateFormatter()
-        noPeriod.dateFormat = "h:mm"
-        let start = noPeriod.string(from: record.startedAt)
+        let start = Self.noPeriodFormatter.string(from: record.startedAt)
         let end = timeString(record.completedAt)
         return "\(start) → \(end)"
     }

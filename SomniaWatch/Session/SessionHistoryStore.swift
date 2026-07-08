@@ -75,10 +75,19 @@ final class SessionHistoryStore: ObservableObject {
     }
 
     private func load() {
-        guard let data = UserDefaults.standard.data(forKey: defaultsKey),
-              let decoded = try? JSONDecoder().decode([SessionRecord].self, from: data)
-        else { return }
-        records = decoded
+        guard let data = UserDefaults.standard.data(forKey: defaultsKey) else { return }
+
+        // Decode records individually so one undecodable record (e.g. written
+        // by an older build with a different schema) doesn't wipe all history.
+        struct FailableRecord: Decodable {
+            let record: SessionRecord?
+            init(from decoder: Decoder) throws {
+                record = try? SessionRecord(from: decoder)
+            }
+        }
+
+        guard let decoded = try? JSONDecoder().decode([FailableRecord].self, from: data) else { return }
+        records = decoded.compactMap(\.record)
     }
 
     private func save() {

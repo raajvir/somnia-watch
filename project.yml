@@ -26,6 +26,8 @@ targets:
         CFBundleDisplayName: Somnia
         WKApplication: true
         WKWatchOnly: true
+        WKBackgroundModes:
+          - workout-processing
         NSHealthShareUsageDescription: "Somnia reads your heart rate and heart rate variability during breathing sessions."
         NSHealthUpdateUsageDescription: "Somnia records a mind-and-body session to Health during breathing sessions."
         NSMotionUsageDescription: "Somnia reads wrist motion to help detect your breathing rhythm."
@@ -40,6 +42,7 @@ targets:
       path: SomniaWatch/SomniaWatch.entitlements
       properties:
         com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.background-delivery: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.projectsomnia.watch

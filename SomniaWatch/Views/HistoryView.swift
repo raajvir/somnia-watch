@@ -135,10 +135,14 @@ struct HistoryView: View {
         .onTapGesture(perform: onClose)
     }
 
-    private func dateTitle(_ date: Date) -> String {
+    private static let dateTitleFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEE, MMM d"
-        return formatter.string(from: date)
+        return formatter
+    }()
+
+    private func dateTitle(_ date: Date) -> String {
+        Self.dateTitleFormatter.string(from: date)
     }
 }
 

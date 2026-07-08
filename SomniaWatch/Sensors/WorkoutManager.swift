@@ -51,7 +51,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         }
 
         do {
-            try await healthStore.requestAuthorization(toShare: [], read: [heartRateType, hrvType])
+            try await healthStore.requestAuthorization(toShare: [HKObjectType.workoutType()], read: [heartRateType, hrvType])
             isAuthorized = true
         } catch {
             isAuthorized = false
@@ -62,6 +62,8 @@ final class WorkoutManager: NSObject, ObservableObject {
     /// No-ops (leaving heart rate as "--") if HealthKit is unavailable.
     func start() {
         guard HKHealthStore.isHealthDataAvailable() else { return }
+
+        if session != nil { stop() }
 
         latestHeartRate = nil
         averageHeartRate = nil
@@ -113,8 +115,9 @@ final class WorkoutManager: NSObject, ObservableObject {
         builder.endCollection(withEnd: endDate) { [weak self] _, _ in
             builder.finishWorkout { _, _ in }
             Task { @MainActor in
-                self?.session = nil
-                self?.builder = nil
+                guard let self, self.session === session else { return }
+                self.session = nil
+                self.builder = nil
             }
         }
     }
@@ -177,7 +180,13 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
     }
 
     nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
-        // Degrade gracefully — the session/view keeps running without HR.
+        // Degrade gracefully — the session/view keeps running without HR, but
+        // clear the dead session so a later start() isn't blocked by it.
+        Task { @MainActor [weak self] in
+            guard let self, self.session === workoutSession else { return }
+            self.session = nil
+            self.builder = nil
+        }
     }
 }
 
