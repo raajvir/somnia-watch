@@ -14,34 +14,40 @@ struct SessionSummaryCard: View {
     var title: String = "Session complete"
 
     var body: some View {
-        VStack(spacing: 12) {
+        // Vertical rhythm in the hero area (logo/badge/duration) is
+        // deliberately tight — on the 40mm screen the hero used to fill the
+        // entire first viewport, hiding the stat rows below it so users
+        // never realized they existed. Trimming here (not the stat rows —
+        // those keep their own spacing) lets the top of "Breaths completed"
+        // peek above the fold as a scroll hint. The big duration number
+        // stays the visual hero; only the padding around it shrank.
+        VStack(spacing: 6) {
             Image("Wordmark")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 74)
+                .frame(width: 60)
                 .opacity(0.9)
 
             ZStack {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(SomniaColors.accentBright.opacity(0.35))
-                    .frame(width: 168, height: 46)
+                    .frame(width: 168, height: 38)
                     .blur(radius: 18)
 
                 Text(title)
                     .font(SomniaFont.bold(16))
                     .foregroundStyle(SomniaColors.accentBright)
             }
-            .padding(.bottom, 4)
 
             VStack(spacing: 0) {
                 Text("\(record.actualMinutes)")
-                    .font(SomniaFont.black(44))
+                    .font(SomniaFont.black(40))
                     .foregroundStyle(.white)
                 Text("minutes")
                     .font(SomniaFont.regular(12))
                     .foregroundStyle(.white.opacity(0.6))
             }
-            .padding(.bottom, 6)
+            .padding(.bottom, 2)
 
             VStack(spacing: 9) {
                 row(label: "Breaths completed", value: "\(record.totalBreaths)")

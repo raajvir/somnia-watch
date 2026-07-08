@@ -63,8 +63,11 @@ struct HomeView: View {
 
                 GreetingText(name: name)
                     .padding(.horizontal, 10)
-                    // In the picker state the greeting rides up out of the way.
+                    // In the picker state the greeting rides up out of the way
+                    // and fades out so the sheet's top edge doesn't slice it
+                    // mid-glyph on the narrower watch sizes.
                     .offset(y: showPicker ? -18 : 0)
+                    .opacity(showPicker ? 0 : 1)
 
                 if !showPicker {
                     startButton
@@ -166,7 +169,7 @@ struct HomeView: View {
                 Text("Start Sleep")
                     .font(SomniaFont.black(23))
                     .foregroundStyle(Color(red: 0.16, green: 0.17, blue: 0.22))
-                Text("Optimized for you, with AI")
+                Text("\(SessionBounds.defaultMinutes) minutes of guided breathing")
                     .font(SomniaFont.regular(10))
                     .foregroundStyle(Color(red: 0.42, green: 0.44, blue: 0.5))
             }

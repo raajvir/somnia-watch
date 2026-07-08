@@ -18,21 +18,30 @@ struct LiveDataView: View {
                 VStack(spacing: 8) {
                     Color.clear.frame(height: 4)
 
-                    HStack {
-                        Button(action: onClose) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.white.opacity(0.75))
-                                .frame(width: 26, height: 26)
-                                .background(Circle().fill(.white.opacity(0.12)))
+                    ZStack {
+                        // Title centered via an asymmetric trailing spacer —
+                        // same pattern as HomeView's header — so it reserves
+                        // room for the system clock on the right. A plain
+                        // centered title placed its trailing edge right under
+                        // the clock digits on the narrowest screen (SE 40mm).
+                        HStack {
+                            Spacer(minLength: 0)
+                            Text("Live Data")
+                                .font(SomniaFont.bold(15))
+                                .foregroundStyle(.white)
+                            Spacer(minLength: 54)
                         }
-                        .buttonStyle(.plain)
-                        Spacer()
-                        Text("Live Data")
-                            .font(SomniaFont.bold(15))
-                            .foregroundStyle(.white)
-                        Spacer()
-                        Color.clear.frame(width: 26, height: 26)
+                        HStack {
+                            Button(action: onClose) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.75))
+                                    .frame(width: 26, height: 26)
+                                    .background(Circle().fill(.white.opacity(0.12)))
+                            }
+                            .buttonStyle(.plain)
+                            Spacer()
+                        }
                     }
                     .padding(.bottom, 6)
 

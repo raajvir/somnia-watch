@@ -86,7 +86,7 @@ struct HistoryView: View {
                                 Text(dateTitle(record.completedAt))
                                     .font(SomniaFont.bold(13))
                                     .foregroundStyle(.white)
-                                Text("\(record.actualMinutes) min · \(record.totalBreaths) breaths")
+                                Text("\(record.actualMinutes) min · \(record.totalBreaths) \(record.totalBreaths == 1 ? "breath" : "breaths")")
                                     .font(SomniaFont.regular(10.5))
                                     .foregroundStyle(.white.opacity(0.55))
                             }
