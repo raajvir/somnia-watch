@@ -15,9 +15,12 @@ struct SessionView: View {
     @State private var showControls = CommandLine.arguments.contains("-showcontrols")
     @State private var didFinish = false
     @State private var sessionStart = Date()
+    @State private var dotOpacity: Double = Self.dotRestOpacity
+    @State private var dotScale: CGFloat = 1.0
 
     private static let baseSize: CGFloat = 200
     private static let troughScale: CGFloat = 0.28
+    private static let dotRestOpacity: Double = 0.12
 
     var body: some View {
         GeometryReader { geo in
@@ -70,6 +73,9 @@ struct SessionView: View {
             .onChange(of: controller.isComplete) { _, isComplete in
                 if isComplete { finish() }
             }
+            .onChange(of: controller.hapticPulse) { _, _ in
+                flashDot(for: controller.lastTap)
+            }
         }
         // Wraps the GeometryReader itself, not just its child ZStack — same
         // scoping mistake as Home/Summary/History. Applied only to the
@@ -86,6 +92,14 @@ struct SessionView: View {
                 metric(value: heartRateValue, unit: "bpm")
                 metric(value: hzValue, unit: "Hz")
             }
+
+            // Haptic sync dot: flashes in lockstep with each tap so the
+            // tap/visual rhythm can be judged by eye, not just felt.
+            Circle()
+                .fill(Color.white)
+                .frame(width: 7, height: 7)
+                .opacity(dotOpacity)
+                .scaleEffect(dotScale)
         }
         .foregroundStyle(.white)
     }
@@ -184,6 +198,17 @@ struct SessionView: View {
             }
         case .peakHold, .troughHold:
             break // Hold at the scale reached by the preceding animation.
+        }
+    }
+
+    /// Flashes the sync dot: instantly snaps bright (and slightly bigger on
+    /// the peak tap), then eases back to its dim resting state.
+    private func flashDot(for tap: HapticPacer.Tap) {
+        dotOpacity = 1.0
+        dotScale = tap == .peak ? 1.6 : 1.0
+        withAnimation(.easeOut(duration: 0.22)) {
+            dotOpacity = Self.dotRestOpacity
+            dotScale = 1.0
         }
     }
 

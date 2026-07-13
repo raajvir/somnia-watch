@@ -15,6 +15,11 @@ final class SessionController: ObservableObject {
     /// Seconds remaining in the whole session.
     @Published private(set) var remainingTime: TimeInterval = 0
     @Published private(set) var isComplete: Bool = false
+    /// Increments on every haptic tap — the view watches this to flash a
+    /// sync indicator in lockstep with the haptics.
+    @Published private(set) var hapticPulse: Int = 0
+    /// The kind of tap that produced the most recent `hapticPulse` bump.
+    @Published private(set) var lastTap: HapticPacer.Tap = .tick
 
     /// Phase durations for the breath currently in progress. The view uses
     /// this to size its inhale/exhale animations to match the current
@@ -38,6 +43,13 @@ final class SessionController: ObservableObject {
     /// smaller than the shortest possible phase (a hold phase can be as
     /// short as 5% of a 6s breath, i.e. ~0.3s) so transitions aren't missed.
     private let tickInterval: TimeInterval = 0.05
+
+    init() {
+        haptics.onTap = { [weak self] tap in
+            self?.lastTap = tap
+            self?.hapticPulse += 1
+        }
+    }
 
     /// Starts a new session lasting `minutes` minutes.
     func start(minutes: Int, onComplete: @escaping () -> Void = {}) {

@@ -99,7 +99,7 @@ struct SessionSummaryCard: View {
     }
 
     private func paceString(_ bpm: Double) -> String {
-        String(format: "%.0f", bpm.rounded())
+        bpm.rounded() == bpm ? String(format: "%.0f", bpm) : String(format: "%.1f", bpm)
     }
 
     private static let timeStringFormatter: DateFormatter = {
