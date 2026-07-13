@@ -1,13 +1,15 @@
 import WatchKit
 
 /// Paces breathing with mirrored haptic ticks: they accelerate through the
-/// inhale, crescendo in one stronger tap at the top of the breath, then
-/// decelerate through the exhale — the tap rhythm IS the breath wave.
+/// inhale, decelerate through the exhale — the tap rhythm IS the breath wave.
+/// Each turnaround gets its own distinct marker so transitions are
+/// unmistakable: a rising tap at the peak ("turn: breathe out"), a falling
+/// tap at the trough ("turn: breathe in"), light clicks in between.
 /// watchOS offers no amplitude control (only fixed WKHapticType patterns),
 /// so all pacing lives in tap timing + type choice.
 @MainActor
 final class HapticPacer {
-    enum Tap { case tick, peak, complete }
+    enum Tap { case tick, peak, trough, complete }
 
     /// Fired on the main actor at the moment each haptic is played —
     /// drives the on-screen sync indicator.
@@ -25,10 +27,12 @@ final class HapticPacer {
         cancelTaps()
         switch phase {
         case .inhale:
-            // Trough -> peak: gaps shrink. First tick right at the trough.
+            // Bottom of the breath: the falling turnaround tap owns t=0,
+            // then ticks tighten trough -> peak.
+            play(.trough)
             let offsets = Self.rampOffsets(duration: timeline.inhale,
                                            startGap: maxGap, endGap: minGap,
-                                           includeZero: true)
+                                           includeZero: false)
             run(offsets: offsets)
         case .exhale:
             // Top of the breath: the crescendo tap, then ticks widen back out.
@@ -67,6 +71,7 @@ final class HapticPacer {
         switch tap {
         case .tick: WKInterfaceDevice.current().play(.click)
         case .peak: WKInterfaceDevice.current().play(.directionUp)
+        case .trough: WKInterfaceDevice.current().play(.directionDown)
         case .complete: WKInterfaceDevice.current().play(.success)
         }
         onTap?(tap)
@@ -79,10 +84,10 @@ final class HapticPacer {
 
     /// Tick times within a phase. Gaps interpolate linearly from `startGap`
     /// to `endGap` across the phase, so the rhythm accelerates (inhale) or
-    /// relaxes (exhale). `includeZero` controls a tick at t=0 — the exhale
-    /// skips it because the peak tap owns that instant. No tick lands within
-    /// half the terminal gap of the phase's end, so phase-boundary taps
-    /// never stack. Exposed for testing.
+    /// relaxes (exhale). `includeZero` controls a tick at t=0 — both phases
+    /// skip it now, because a turnaround marker (peak/trough) owns that
+    /// instant. No tick lands within half the terminal gap of the phase's
+    /// end, so phase-boundary taps never stack. Exposed for testing.
     static func rampOffsets(duration: TimeInterval,
                             startGap: TimeInterval,
                             endGap: TimeInterval,

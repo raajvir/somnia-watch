@@ -11,6 +11,7 @@ final class TickTone {
     private let player = AVAudioPlayerNode()
     private var tickBuffer: AVAudioPCMBuffer?
     private var peakBuffer: AVAudioPCMBuffer?
+    private var troughBuffer: AVAudioPCMBuffer?
     private var completeBuffer: AVAudioPCMBuffer?
     private var isRunning = false
 
@@ -24,6 +25,9 @@ final class TickTone {
 
         tickBuffer = Self.blip(frequency: 880, duration: 0.045, amplitude: 0.30, format: format)
         peakBuffer = Self.blip(frequency: 1318.5, duration: 0.09, amplitude: 0.38, format: format)
+        // A fifth below the tick — reads as "settle/turn down" at the trough,
+        // mirroring the peak's higher "lift" blip.
+        troughBuffer = Self.blip(frequency: 587.3, duration: 0.09, amplitude: 0.38, format: format)
         completeBuffer = Self.blip(frequency: 1568, duration: 0.18, amplitude: 0.38, format: format)
     }
 
@@ -56,6 +60,7 @@ final class TickTone {
         let buffer: AVAudioPCMBuffer? = switch tap {
         case .tick: tickBuffer
         case .peak: peakBuffer
+        case .trough: troughBuffer
         case .complete: completeBuffer
         }
         guard let buffer else { return }

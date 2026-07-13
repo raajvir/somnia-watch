@@ -24,13 +24,21 @@ struct SessionView: View {
 
     var body: some View {
         GeometryReader { geo in
-            // The bubble only needs to grow enough that its diameter covers
-            // the screen's diagonal — anything beyond that is invisible
-            // overshoot that made the "fully lit" moment feel stretched out.
-            // A small buffer (1.06x) avoids a visible unlit sliver in the
-            // corners as the display renders it.
-            let diagonal = sqrt(pow(geo.size.width, 2) + pow(geo.size.height, 2))
-            let peakScale = (diagonal * 1.06) / Self.baseSize
+            // Peak = the moment the screen READS as fully lit — not the true
+            // rectangular diagonal. Watch displays have heavily rounded
+            // corners, so covering the rectangle's corners is invisible
+            // overshoot: the bubble kept growing (and the haptics kept
+            // accelerating) after the screen already looked full, which made
+            // the top of the breath feel late/disconnected. The farthest
+            // VISIBLE point is the rounded corner's extreme; corner radius
+            // isn't public API, but ~26% of the shorter side tracks the
+            // 40-49mm hardware closely, and the bubble's glow shadow covers
+            // the residual corner sliver. Adapts per model via geo.size.
+            let cornerRadius = min(geo.size.width, geo.size.height) * 0.22
+            let dx = geo.size.width / 2 - cornerRadius
+            let dy = geo.size.height / 2 - cornerRadius
+            let coverRadius = sqrt(dx * dx + dy * dy) + cornerRadius
+            let peakScale = (coverRadius * 2 * 1.06) / Self.baseSize
 
             ZStack {
                 Color.black.ignoresSafeArea()
@@ -205,7 +213,7 @@ struct SessionView: View {
     /// the peak tap), then eases back to its dim resting state.
     private func flashDot(for tap: HapticPacer.Tap) {
         dotOpacity = 1.0
-        dotScale = tap == .peak ? 1.6 : 1.0
+        dotScale = (tap == .peak || tap == .trough) ? 1.6 : 1.0
         withAnimation(.easeOut(duration: 0.22)) {
             dotOpacity = Self.dotRestOpacity
             dotScale = 1.0
