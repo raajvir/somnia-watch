@@ -18,6 +18,17 @@ struct SessionRecord: Codable, Identifiable, Equatable {
     let firstHeartRate: Double?
     let lastHeartRate: Double?
     let heartRateSampleCount: Int
+    /// The session's originally scheduled length in minutes (before any
+    /// dynamic extension). Optional — absent on records written before this
+    /// field existed.
+    let targetMinutes: Int?
+    /// Extra seconds appended by dynamic extension, beyond `targetMinutes`.
+    /// Optional for the same reason, and 0/nil for fixed-length sessions.
+    let extendedSeconds: Int?
+    /// Fraction of the session's breath-rate estimation windows that had a
+    /// usable motion signal. Only meaningful for dynamic sessions; recorded
+    /// regardless since it's harmless for fixed ones.
+    let breathSignalCoverage: Double?
     /// Commanded breathing rate at the start/end of the session (bpm), from
     /// `BreathingConfig` — not a measured rate.
     let startPaceBpm: Double
@@ -34,6 +45,9 @@ struct SessionRecord: Codable, Identifiable, Equatable {
         firstHeartRate: Double? = nil,
         lastHeartRate: Double? = nil,
         heartRateSampleCount: Int = 0,
+        targetMinutes: Int? = nil,
+        extendedSeconds: Int? = nil,
+        breathSignalCoverage: Double? = nil,
         startPaceBpm: Double = 60 / BreathingConfig.startBreathDuration,
         endPaceBpm: Double = 60 / BreathingConfig.endBreathDuration
     ) {
@@ -48,6 +62,9 @@ struct SessionRecord: Codable, Identifiable, Equatable {
         self.firstHeartRate = firstHeartRate
         self.lastHeartRate = lastHeartRate
         self.heartRateSampleCount = heartRateSampleCount
+        self.targetMinutes = targetMinutes
+        self.extendedSeconds = extendedSeconds
+        self.breathSignalCoverage = breathSignalCoverage
         self.startPaceBpm = startPaceBpm
         self.endPaceBpm = endPaceBpm
     }

@@ -51,6 +51,9 @@ struct SessionSummaryCard: View {
 
             VStack(spacing: 9) {
                 row(label: "Breaths completed", value: "\(record.totalBreaths)")
+                if let extended = record.extendedSeconds, extended > 0 {
+                    row(label: "Extended", value: extendedString(extended))
+                }
                 row(label: "Breathing pace",
                     value: "\(paceString(record.startPaceBpm)) → \(paceString(record.endPaceBpm))",
                     unit: "bpm")
@@ -100,6 +103,13 @@ struct SessionSummaryCard: View {
 
     private func paceString(_ bpm: Double) -> String {
         bpm.rounded() == bpm ? String(format: "%.0f", bpm) : String(format: "%.1f", bpm)
+    }
+
+    /// "+M:SS" — how much longer the session ran than its scheduled target.
+    private func extendedString(_ seconds: Int) -> String {
+        let m = seconds / 60
+        let s = seconds % 60
+        return String(format: "+%d:%02d", m, s)
     }
 
     private static let timeStringFormatter: DateFormatter = {

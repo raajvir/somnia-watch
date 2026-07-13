@@ -24,7 +24,7 @@ enum SessionBounds {
 /// No navigation stack/router needed for a flow this small.
 enum AppScreen: Equatable {
     case home
-    case session(minutes: Int)
+    case session(minutes: Int, dynamic: Bool)
     case summary(SessionRecord)
     case history
     case liveData
@@ -44,7 +44,7 @@ struct SomniaWatchApp: App {
     // Launch args for automated UI verification: jump straight to a screen.
     @State private var screen: AppScreen = {
         let args = CommandLine.arguments
-        if args.contains("-autostart") { return .session(minutes: 8) }
+        if args.contains("-autostart") { return .session(minutes: 8, dynamic: true) }
         if args.contains("-showsummary") { return .summary(previewRecord) }
         if args.contains("-showhistory") { return .history }
         if args.contains("-showlivedata") { return .liveData }
@@ -65,16 +65,17 @@ struct SomniaWatchApp: App {
 
                 switch screen {
                 case .home:
-                    HomeView(startWithPicker: startWithPicker) { minutes in
-                        screen = .session(minutes: minutes)
+                    HomeView(startWithPicker: startWithPicker) { minutes, dynamic in
+                        screen = .session(minutes: minutes, dynamic: dynamic)
                     } onHistory: {
                         screen = .history
                     } onLiveData: {
                         screen = .liveData
                     }
-                case .session(let minutes):
+                case .session(let minutes, let dynamic):
                     SessionView(
                         minutes: minutes,
+                        dynamicDuration: dynamic,
                         controller: sessionController,
                         workoutManager: workoutManager,
                         onFinish: { record in

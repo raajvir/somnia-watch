@@ -7,6 +7,10 @@ import SwiftUI
 /// staying legible through the entire breath.
 struct SessionView: View {
     let minutes: Int
+    /// True for the quick-start "Start Sleep" flow — that session extends
+    /// itself while breathing stays fast. Crown-picked custom sessions pass
+    /// false and run exactly `minutes`, sensing nothing.
+    let dynamicDuration: Bool
     @ObservedObject var controller: SessionController
     @ObservedObject var workoutManager: WorkoutManager
     let onFinish: (SessionRecord) -> Void
@@ -17,6 +21,14 @@ struct SessionView: View {
     @State private var sessionStart = Date()
     @State private var dotOpacity: Double = Self.dotRestOpacity
     @State private var dotScale: CGFloat = 1.0
+
+    /// True when the display is in its dimmed always-on state — which is
+    /// exactly what a palm cover (or wrist-down) produces. That's the
+    /// system's own "screen off" gesture, so we honor it: the bubble and
+    /// readouts disappear, leaving only a faint countdown, while the haptic
+    /// and audio pacing continue uninterrupted. A tap or wrist raise brings
+    /// the visuals back mid-breath (the controller is wall-clock anchored).
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
     private static let baseSize: CGFloat = 200
     private static let troughScale: CGFloat = 0.28
@@ -54,6 +66,10 @@ struct SessionView: View {
                     .frame(width: Self.baseSize, height: Self.baseSize)
                     .shadow(color: SomniaColors.bubbleEdge.opacity(0.7), radius: 24)
                     .scaleEffect(circleScale)
+                    // Palm cover / wrist down: no glowing animated surface
+                    // in a dark bedroom.
+                    .opacity(isLuminanceReduced ? 0 : 1)
+                    .animation(.easeOut(duration: 0.3), value: isLuminanceReduced)
 
                 readouts
                     .blendMode(.exclusion)
@@ -95,21 +111,24 @@ struct SessionView: View {
     private var readouts: some View {
         VStack(spacing: 8) {
             countdownText
+                .opacity(isLuminanceReduced ? 0.4 : 1)
 
             HStack(spacing: 8) {
                 metric(value: heartRateValue, unit: "bpm")
                 metric(value: hzValue, unit: "Hz")
             }
+            .opacity(isLuminanceReduced ? 0 : 1)
 
             // Haptic sync dot: flashes in lockstep with each tap so the
             // tap/visual rhythm can be judged by eye, not just felt.
             Circle()
                 .fill(Color.white)
                 .frame(width: 7, height: 7)
-                .opacity(dotOpacity)
+                .opacity(isLuminanceReduced ? 0 : dotOpacity)
                 .scaleEffect(dotScale)
         }
         .foregroundStyle(.white)
+        .animation(.easeOut(duration: 0.3), value: isLuminanceReduced)
     }
 
     /// M:SS countdown, minute in the large weight with the seconds trailing
@@ -176,7 +195,7 @@ struct SessionView: View {
             await workoutManager.requestAuthorization()
             workoutManager.start()
         }
-        controller.start(minutes: minutes)
+        controller.start(minutes: minutes, mode: dynamicDuration ? .dynamicTarget : .fixed)
         // `currentPhase` already defaults to .inhale, so if the session also
         // starts on .inhale, SwiftUI's onChange sees no transition and the
         // very first breath's growth never fires. Kick it off explicitly.
@@ -238,7 +257,10 @@ struct SessionView: View {
             maxHeartRate: workoutManager.maxHeartRate,
             firstHeartRate: workoutManager.firstHeartRate,
             lastHeartRate: workoutManager.latestHeartRate,
-            heartRateSampleCount: workoutManager.heartRateSampleCount
+            heartRateSampleCount: workoutManager.heartRateSampleCount,
+            targetMinutes: minutes,
+            extendedSeconds: Int(controller.extendedSeconds),
+            breathSignalCoverage: controller.breathEstimator.coverage
         )
         onFinish(record)
     }
@@ -247,6 +269,7 @@ struct SessionView: View {
 #Preview {
     SessionView(
         minutes: 8,
+        dynamicDuration: true,
         controller: SessionController(),
         workoutManager: WorkoutManager(),
         onFinish: { _ in }

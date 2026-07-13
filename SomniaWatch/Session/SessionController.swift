@@ -8,6 +8,17 @@ import Foundation
 /// if the app is briefly suspended (e.g. the watch dims/backgrounds it).
 @MainActor
 final class SessionController: ObservableObject {
+    /// How the session's length is decided.
+    enum Mode: Equatable {
+        /// Crown-picked custom session: runs exactly `minutes`, senses nothing.
+        case fixed
+        /// Quick-start: targets `minutes`, then extends in one-minute blocks
+        /// of end-pace breaths while the wearer's estimated breathing rate
+        /// stays above `extendAboveBpm` — capped at 2x the target. No usable
+        /// signal -> no extension -> identical to `fixed`.
+        case dynamicTarget
+    }
+
     @Published private(set) var currentPhase: BreathPhase = .inhale
     @Published private(set) var currentBreathIndex: Int = 0
     /// Overall session progress, 0 (just started) ... 1 (finished).
@@ -29,6 +40,27 @@ final class SessionController: ObservableObject {
 
     /// Total number of breaths in the session (known once `start` is called).
     private(set) var totalBreathCount: Int = 0
+
+    /// How the current session's length is decided.
+    private(set) var mode: Mode = .fixed
+    /// The originally scheduled session length, in seconds.
+    private var targetDuration: TimeInterval = 0
+    /// Hard ceiling on total session length (2x target), in seconds.
+    private var maxDuration: TimeInterval = 0
+    /// The breath index extension was last evaluated for, so each near-end
+    /// breath is only evaluated once even though `tick()` runs many times
+    /// within its window.
+    private var extensionEvaluatedForBreath = -1
+    let breathEstimator = BreathEstimator()
+    /// Total extra seconds appended to the session so far via extension.
+    @Published private(set) var extendedSeconds: TimeInterval = 0
+
+    /// Estimated breathing rate (bpm) above which a `.dynamicTarget` session
+    /// keeps extending instead of wrapping up.
+    private let extendAboveBpm: Double = 7.5
+    /// Breaths appended per extension block — roughly a minute at the final,
+    /// slowest pace (~65s of 10.9s breaths).
+    private let extensionBreathCount = 6
 
     private var breathDurations: [TimeInterval] = []
     /// Cumulative start offset (seconds from session start) of each breath.
@@ -53,13 +85,24 @@ final class SessionController: ObservableObject {
         }
     }
 
-    /// Starts a new session lasting `minutes` minutes.
-    func start(minutes: Int, onComplete: @escaping () -> Void = {}) {
+    /// Starts a new session lasting `minutes` minutes. `mode` is `.fixed` for
+    /// crown-picked custom lengths (senses nothing) and `.dynamicTarget` for
+    /// quick-start (extends beyond `minutes` while breathing stays fast).
+    func start(minutes: Int, mode: Mode = .fixed, onComplete: @escaping () -> Void = {}) {
         stop()
         tone.start()
 
         let total = TimeInterval(minutes * 60)
         let durations = BreathingEngine.generateBreathDurations(totalTime: total)
+
+        self.mode = mode
+        targetDuration = total
+        maxDuration = total * 2
+        extendedSeconds = 0
+        extensionEvaluatedForBreath = -1
+        if mode == .dynamicTarget {
+            breathEstimator.start()
+        }
 
         breathDurations = durations
         totalDuration = total
@@ -99,6 +142,7 @@ final class SessionController: ObservableObject {
     func stop() {
         haptics.stop()
         tone.stop()
+        breathEstimator.stop()
         timer?.invalidate()
         timer = nil
         startDate = nil
@@ -115,6 +159,13 @@ final class SessionController: ObservableObject {
 
         remainingTime = max(0, totalDuration - elapsed)
         progress = totalDuration > 0 ? min(1, elapsed / totalDuration) : 1
+
+        if mode == .dynamicTarget,
+           remainingTime <= 10,
+           currentBreathIndex != extensionEvaluatedForBreath {
+            extensionEvaluatedForBreath = currentBreathIndex
+            if shouldExtend() { appendExtension() }
+        }
 
         // Breaths are ordered and elapsed time only grows, so scan forward
         // from the current breath instead of rescanning from the start.
@@ -140,6 +191,27 @@ final class SessionController: ObservableObject {
         }
     }
 
+    private func shouldExtend() -> Bool {
+        guard totalDuration + TimeInterval(extensionBreathCount) * BreathingConfig.endBreathDuration <= maxDuration else { return false }
+        guard breathEstimator.confidence >= BreathEstimator.minConfidence,
+              let bpm = breathEstimator.estimatedBpm else { return false }
+        return bpm > extendAboveBpm
+    }
+
+    /// Appends one block of end-pace breaths to the schedule. Only ever
+    /// called near the scheduled end, so the countdown visibly bumps up —
+    /// that's honest feedback that the session decided to keep going.
+    private func appendExtension() {
+        let d = BreathingConfig.endBreathDuration
+        for _ in 0..<extensionBreathCount {
+            breathStartOffsets.append(totalDuration)
+            breathDurations.append(d)
+            totalDuration += d
+        }
+        totalBreathCount = breathDurations.count
+        extendedSeconds += TimeInterval(extensionBreathCount) * d
+    }
+
     private func resolvePhase(at elapsedInBreath: TimeInterval, in timeline: BreathPhaseTimeline) -> BreathPhase {
         var cumulative: TimeInterval = 0
         for phase in BreathPhase.allCases {
@@ -159,6 +231,7 @@ final class SessionController: ObservableObject {
         isComplete = true
         haptics.stop()
         haptics.playSessionComplete()
+        breathEstimator.stop()
         onComplete?()
 
         // Let the completion beep finish playing before tearing down the

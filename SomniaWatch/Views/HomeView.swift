@@ -4,7 +4,8 @@ import SwiftUI
 /// rotating the Digital Crown raises a custom-length picker from below.
 struct HomeView: View {
     var startWithPicker: Bool = false
-    let onStart: (Int) -> Void
+    /// (minutes, dynamic) — dynamic is true only for the quick-start button.
+    let onStart: (Int, Bool) -> Void
     let onHistory: () -> Void
     /// Long-press the history button — a diagnostics screen doesn't need its
     /// own permanent icon competing for the same tight corner.
@@ -105,7 +106,7 @@ struct HomeView: View {
                     minutes: $minutes,
                     isFocused: focus == .picker,
                     onCancel: closePicker,
-                    onGo: { onStart(Int(minutes)) }
+                    onGo: { onStart(Int(minutes), false) }
                 )
                 .focusable(true)
                 .focused($focus, equals: .picker)
@@ -163,15 +164,17 @@ struct HomeView: View {
 
     private var startButton: some View {
         Button {
-            onStart(SessionBounds.defaultMinutes)
+            onStart(SessionBounds.defaultMinutes, true)
         } label: {
             VStack(spacing: 2) {
                 Text("Start Sleep")
                     .font(SomniaFont.black(23))
                     .foregroundStyle(Color(red: 0.16, green: 0.17, blue: 0.22))
-                Text("\(SessionBounds.defaultMinutes) minutes of guided breathing")
+                Text("About \(SessionBounds.defaultMinutes) minutes — adapts to your breathing")
                     .font(SomniaFont.regular(10))
                     .foregroundStyle(Color(red: 0.42, green: 0.44, blue: 0.5))
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
@@ -260,5 +263,5 @@ private struct Sparkles: View {
 }
 
 #Preview {
-    HomeView(onStart: { _ in }, onHistory: {})
+    HomeView(onStart: { _, _ in }, onHistory: {})
 }
