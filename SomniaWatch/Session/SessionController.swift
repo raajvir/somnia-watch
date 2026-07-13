@@ -38,6 +38,7 @@ final class SessionController: ObservableObject {
     private var timer: Timer?
     private var onComplete: (() -> Void)?
     private let haptics = HapticPacer()
+    private let tone = TickTone()
 
     /// How often we recompute phase/breath from the wall clock. Must be
     /// smaller than the shortest possible phase (a hold phase can be as
@@ -48,12 +49,14 @@ final class SessionController: ObservableObject {
         haptics.onTap = { [weak self] tap in
             self?.lastTap = tap
             self?.hapticPulse += 1
+            self?.tone.play(tap)
         }
     }
 
     /// Starts a new session lasting `minutes` minutes.
     func start(minutes: Int, onComplete: @escaping () -> Void = {}) {
         stop()
+        tone.start()
 
         let total = TimeInterval(minutes * 60)
         let durations = BreathingEngine.generateBreathDurations(totalTime: total)
@@ -95,6 +98,7 @@ final class SessionController: ObservableObject {
     /// Cancels the session without marking it complete.
     func stop() {
         haptics.stop()
+        tone.stop()
         timer?.invalidate()
         timer = nil
         startDate = nil
@@ -156,5 +160,13 @@ final class SessionController: ObservableObject {
         haptics.stop()
         haptics.playSessionComplete()
         onComplete?()
+
+        // Let the completion beep finish playing before tearing down the
+        // audio session — but only if a new session hasn't started since.
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(400))
+            guard let self, self.isComplete else { return }
+            self.tone.stop()
+        }
     }
 }
